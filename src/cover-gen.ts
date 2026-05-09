@@ -408,15 +408,15 @@ function buildScreenerContent(input: CoverInput, locale: Locale, text: TextPalet
   const peers = input.tickers.slice(1, 4);
   const cjk   = isCJKLocale(locale);
   return [
-    { kind: "label",  text: input.series ?? DEFAULT_LABELS[locale].screenerSeries, x: 28, y: 24,
+    { kind: "label",  text: input.series ?? DEFAULT_LABELS[locale].screenerSeries, x: 28, y: 35,
       fontSize: 9, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: cjk ? 0 : TRACKED_CAPS,
       paletteRole: "label", caps: !cjk },
-    { kind: "ticker", text: lead, x: 28, y: 48,
-      fontSize: 34, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: 0, paletteRole: "hero" },
+    { kind: "ticker", text: lead, x: 28, y: 70,
+      fontSize: 42, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: 0, paletteRole: "hero" },
     {
       kind: "peer-chips",
       tickers: peers,
-      x: 28, y: 100,
+      x: 28, y: 128,
       chipHeight: 20,
       chipPaddingX: 8,
       chipGap: 4,
@@ -426,7 +426,7 @@ function buildScreenerContent(input: CoverInput, locale: Locale, text: TextPalet
       chipBorderRadius: 4,
       chipBg:        { color: text.base, opacity: 0.10 },
       chipTextColor: text.support,                            // textBase @ 0.70
-      textBaselineY: 110,
+      textBaselineY: 138,
     },
   ];
 }
@@ -442,7 +442,7 @@ function buildThesisContent(input: CoverInput, locale: Locale, text: TextPalette
   // series is the caps label text and is template-agnostic).
   const category: "RISK" | "CATALYST" | "AMBIGUOUS" = input.category ?? "AMBIGUOUS";
   return [
-    { kind: "label",  text: label, x: 28, y: 24,
+    { kind: "label",  text: label, x: 28, y: 35,
       fontSize: 9, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: cjk ? 0 : TRACKED_CAPS,
       paletteRole: "label", caps: !cjk },
     {
@@ -450,18 +450,18 @@ function buildThesisContent(input: CoverInput, locale: Locale, text: TextPalette
       text: splitDelta(input.kind ?? "", locale),
       category,
       categoryLabel: localizeCategory(category, locale),     // ← pre-resolved per locale
-      x: 28, y: 72,
-      fontSize: 18,
-      lineHeight: 22,
+      x: 28, y: 100,
+      fontSize: 22,
+      lineHeight: 26,
       fontWeight: FONT_WEIGHTS.semiBold,
       letterSpacing: 0,
       bodyColor: text.hero,
       categoryX: 28,
-      categoryY: 60,
-      categoryFontSize: 10,
+      categoryY: 82,
+      categoryFontSize: 11,
       categoryFontWeight: FONT_WEIGHTS.semiBold,
       categoryLetterSpacing: cjk ? 0 : TRACKED_CAPS,
-      categoryDotSize: 4,
+      categoryDotSize: 6,
       categoryColor: CATEGORY_COLORS[category],
     },
   ];
@@ -556,14 +556,14 @@ function buildWhatIfContent(input: CoverInput, bgHsl: HSL, locale: Locale, text:
   const cjk    = isCJKLocale(locale);
   const { bars, zeroLineY } = computeWhatIfBars(input.whatIfBars ?? [], bgHsl);
   return [
-    { kind: "label",    text: input.series ?? labels.whatIfLabel, x: 28, y: 20,
+    { kind: "label",    text: input.series ?? labels.whatIfLabel, x: 28, y: 30,
       fontSize: 9, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: cjk ? 0 : TRACKED_CAPS,
       paletteRole: "label", caps: !cjk },
-    { kind: "verb",     text: input.kind   ?? "", x: 28, y: 64,
+    { kind: "verb",     text: input.kind   ?? "", x: 28, y: 83,
       fontSize: 9, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: cjk ? 0 : TRACKED_CAPS,
       paletteRole: "label", caps: !cjk },
-    { kind: "hero-pct", text: input.anchor ?? "", x: 28, y: 80,
-      fontSize: 40, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: 0, paletteRole: "hero" },
+    { kind: "hero-pct", text: input.anchor ?? "", x: 28, y: 100,
+      fontSize: 50, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: 0, paletteRole: "hero" },
     {
       kind: "bars",
       bars,
@@ -583,17 +583,17 @@ function buildWhatIfContent(input: CoverInput, bgHsl: HSL, locale: Locale, text:
 /**
  * Compute BarSpec[] + zeroLineY from raw signed values. Each bar's height
  * scales relative to the absolute max in the set (cap 28 px), with a 4 px
- * floor so tiny bars stay visible. zeroLineY = 120 − maxNegHeight, so the
- * tallest negative bar's bottom touches the safe-zone bottom (y=120).
+ * floor so tiny bars stay visible. zeroLineY = 150 − maxNegHeight, so the
+ * tallest negative bar's bottom touches the safe-zone bottom (y=150).
  */
 function computeWhatIfBars(values: number[], bgHsl: HSL): { bars: BarSpec[]; zeroLineY: number } {
-  if (!values.length) return { bars: [], zeroLineY: 112 };
+  if (!values.length) return { bars: [], zeroLineY: 142 };
   const N        = values.length;
   const w        = (BARS_RIGHT - BARS_LEFT - BAR_GAP * (N - 1)) / N;
   const maxAbs   = Math.max(...values.map(v => Math.abs(v)), 0.0001);
   const heights  = values.map(v => Math.max(Math.abs(v) * (28 / maxAbs), 4));
   const maxNegH  = values.reduce((a, v, i) => v < 0 ? Math.max(a, heights[i]!) : a, 0);
-  const zeroLineY = 120 - maxNegH;
+  const zeroLineY = 150 - maxNegH;
   const bars: BarSpec[] = values.map((v, i) => {
     const isPos = v >= 0;
     return {
@@ -612,12 +612,12 @@ function buildGeneralContent(input: CoverInput, locale: Locale): ContentElement[
   const labels = DEFAULT_LABELS[locale];
   const cjk    = isCJKLocale(locale);
   return [
-    { kind: "label",      text: input.kind   ?? labels.generalKind, x: 28, y: 24,
+    { kind: "label",      text: input.kind   ?? labels.generalKind, x: 28, y: 35,
       fontSize: 9, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: cjk ? 0 : TRACKED_CAPS,
       paletteRole: "label", caps: !cjk },
-    { kind: "hero-pulse", text: input.anchor ?? "", x: 28, y: 66,
-      fontSize: 28, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: 0, paletteRole: "hero" },
-    { kind: "series",     text: input.series ?? "", x: 28, y: 106,
+    { kind: "hero-pulse", text: input.anchor ?? "", x: 28, y: 94,
+      fontSize: 34, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: 0, paletteRole: "hero" },
+    { kind: "series",     text: input.series ?? "", x: 28, y: 140,
       fontSize: 10, fontWeight: FONT_WEIGHTS.semiBold, letterSpacing: cjk ? 0 : TRACKED_CAPS,
       paletteRole: "support" },
   ];
