@@ -147,16 +147,36 @@ const DEFAULT: FormState = PRESETS.thesisRates;
 
 export function App() {
   const [form, setForm] = useState<FormState>(DEFAULT);
+  // committedInput drives what the cover actually shows. Form edits don't
+  // touch it until the user clicks "Regenerate". This deferred-render model
+  // makes cover updates atomic (avoids the "icon updated but bg didn't" race
+  // when fields change rapidly while the icon is fetching) and gives the user
+  // a clear "is the cover up to date?" affordance.
+  const [committedInput, setCommittedInput] = useState<CoverInput>(() => buildInput(DEFAULT));
   const svgRef = useRef<SVGSVGElement | null>(null);
 
-  const input: CoverInput = useMemo(() => buildInput(form), [form]);
+  // pending = what would-be-rendered if the user clicked Regenerate now
+  const pendingInput: CoverInput = useMemo(() => buildInput(form), [form]);
+
+  // Dirty if the form has diverged from the committed input
+  const isDirty = useMemo(
+    () => JSON.stringify(pendingInput) !== JSON.stringify(committedInput),
+    [pendingInput, committedInput],
+  );
 
   const update = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
   const applyPreset = (name: keyof typeof PRESETS) => {
-    setForm(PRESETS[name]);
+    // Preset switching is treated as an atomic regenerate — both form and
+    // committed input update together so the cover reflects the preset
+    // immediately (no extra click required).
+    const next = PRESETS[name];
+    setForm(next);
+    setCommittedInput(buildInput(next));
   };
+
+  const regenerate = () => setCommittedInput(pendingInput);
 
   const downloadSvg = () => {
     if (!svgRef.current) return;
@@ -209,8 +229,8 @@ export function App() {
       <header className="app-header">
         <h1>Alva Playbook Cover Generator</h1>
         <p>
-          Fill the inputs on the left and the cover regenerates live on the right. Pure
-          parametric — no AI image generation, no prompt engineering. The SVG output is
+          Fill the inputs on the left, click <strong>Regenerate cover</strong> to render.
+          Pure parametric — no AI image generation, no prompt engineering. The SVG output is
           self-contained (brand logos and Material Symbols inlined at render time).
         </p>
         <div className="meta">
@@ -332,25 +352,36 @@ export function App() {
           </Field>
         </section>
 
-        <section className="preview-panel" aria-label="Live cover preview">
+        <section className="preview-panel" aria-label="Cover preview">
           <div className="preview-card">
             <div className="cover-frame">
-              <CoverRenderer input={input} ref={svgRef} />
+              <CoverRenderer input={committedInput} ref={svgRef} />
             </div>
             <div className="preview-meta">
-              <div className="meta-title">{form.title || <span className="muted">(no title)</span>}</div>
-              <div className="meta-author">{form.author || <span className="muted">(no author)</span>}</div>
+              <div className="meta-title">{committedInput.title?.trim() || <span className="muted">(no title)</span>}</div>
+              <div className="meta-author">{committedInput.author?.trim() || <span className="muted">(no author)</span>}</div>
             </div>
           </div>
 
           <div className="actions">
-            <button className="primary" onClick={downloadSvg}>Download SVG</button>
+            <button
+              className={`primary regenerate ${isDirty ? 'is-dirty' : ''}`}
+              onClick={regenerate}
+              disabled={!isDirty}
+              title={isDirty ? 'Regenerate cover with current form values' : 'Cover already reflects current form'}
+            >
+              {isDirty ? '↻ Regenerate cover' : '✓ Cover up to date'}
+            </button>
+          </div>
+
+          <div className="actions">
+            <button onClick={downloadSvg}>Download SVG</button>
             <button onClick={downloadPng}>Download PNG (1280×720)</button>
           </div>
 
           <details className="json-debug">
-            <summary>Resolved CoverInput (what gets passed to generateCover)</summary>
-            <pre>{JSON.stringify(input, null, 2)}</pre>
+            <summary>Resolved CoverInput (what was passed to generateCover)</summary>
+            <pre>{JSON.stringify(committedInput, null, 2)}</pre>
           </details>
         </section>
       </div>

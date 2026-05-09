@@ -260,7 +260,7 @@ a:hover { text-decoration-thickness: 2px; }
 .meta-author { font-size: 12px; color: var(--fg-muted); }
 .muted { color: var(--fg-faint); font-weight: 400; }
 
-.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
 .actions button {
   padding: 10px 16px;
   font-size: 13px;
@@ -271,10 +271,39 @@ a:hover { text-decoration-thickness: 2px; }
   cursor: pointer;
   color: var(--fg);
   font-weight: 500;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
 }
 .actions button:hover { background: rgba(15, 23, 42, 0.04); }
 .actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .actions button.primary:hover { background: #1e293b; }
+
+/* Regenerate button — special states */
+.actions button.regenerate {
+  width: 100%;
+}
+.actions button.regenerate:disabled {
+  cursor: default;
+  background: #f5f5f5;
+  color: var(--fg-faint);
+  border-color: var(--border);
+  opacity: 1;
+}
+.actions button.regenerate:disabled:hover { background: #f5f5f5; }
+.actions button.regenerate.is-dirty {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+  animation: pulse-attention 2s ease-in-out infinite;
+}
+.actions button.regenerate.is-dirty:hover {
+  background: #1e293b;
+  animation: none;
+}
+@keyframes pulse-attention {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1); }
+  50%      { box-shadow: 0 0 0 5px rgba(15, 23, 42, 0.16); }
+}
 
 .json-debug summary { cursor: pointer; font-size: 12px; color: var(--fg-muted); }
 .json-debug pre {
