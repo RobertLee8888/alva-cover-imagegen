@@ -97,6 +97,7 @@ a:hover { text-decoration-thickness: 2px; }
   border-radius: var(--radius-lg);
   padding: 4px;
   overflow: hidden;
+  max-width: 540px;
 }
 .cover-frame {
   width: 100%;
@@ -104,6 +105,20 @@ a:hover { text-decoration-thickness: 2px; }
   border-radius: var(--radius);
   overflow: hidden;
   background: #f3f3ec;
+}
+.preview-actual-size {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--fg-faint);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.preview-actual-size .scale {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 .preview-meta { padding: 14px 16px 12px; }
 .meta-title { font-size: 16px; font-weight: 600; line-height: 1.35; margin-bottom: 4px; }

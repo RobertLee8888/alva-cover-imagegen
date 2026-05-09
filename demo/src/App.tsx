@@ -3,17 +3,33 @@ import type { CoverInput, Template, DomainKey, Locale } from '@skill/types';
 import { CoverRenderer } from './components/CoverRenderer';
 import { COVER_W, COVER_H } from '@skill/dimensions';
 
+// Form field shape — flat, all-strings for easy form binding. We translate to
+// CoverInput at the boundary, where each template uses input.kind / .anchor /
+// .series with DIFFERENT semantics:
+//
+//   screener: series → caps label row (top); ticker hero comes from tickers[0]
+//   thesis:   kind   → delta body (multi-line, split on · / vs / —)
+//             anchor → caps label suffix (appended to "TODAY'S DELTA · ")
+//             category → badge
+//   what-if:  series → caps label row (top)
+//             kind   → verb
+//             anchor → hero %
+//             whatIfBars → distribution bars on the right
+//   general:  kind   → caps label kind (top)
+//             anchor → pulse hero text
+//             series → series caps (bottom)
 type FormState = {
   template: Template;
   title: string;
   author: string;
-  tickers: string;            // comma-separated, parsed at submit
-  domain: DomainKey | '';     // optional, blank = let SKILL infer
-  kind: string;               // template-specific (caps label / kind label)
-  anchor: string;             // template-specific (delta body for thesis, hero pulse for general)
-  series: string;             // optional series row
+  tickers: string;
+  domain: DomainKey | '';
+  capsTop: string;        // shows at TOP as small caps. Maps to series (screener/what-if), kind (general). For thesis, this becomes the suffix appended to "TODAY'S DELTA · ".
+  hero: string;           // shows as the BIG element. Maps to anchor (what-if hero %, general pulse) or kind (thesis delta body).
+  support: string;        // shows in the bottom support row. Maps to series (general). thesis/screener/what-if don't use this row.
+  verb: string;           // what-if only — small caps row above hero. Maps to kind (what-if).
   category: '' | 'RISK' | 'CATALYST' | 'AMBIGUOUS';
-  whatIfBars: string;         // comma-separated signed % values
+  whatIfBars: string;
   locale: Locale;
 };
 
@@ -36,21 +52,20 @@ const DOMAINS: DomainKey[] = [
 
 const LOCALES: Locale[] = ['en', 'zh-CN', 'zh-TW', 'ja-JP', 'ko-KR'];
 
-const PRESETS: Record<string, Partial<FormState>> = {
-  empty: {
-    template: 'thesis', title: '', author: '', tickers: '',
-    domain: '', kind: '', anchor: '', series: '',
-    category: '', whatIfBars: '', locale: 'en',
-  },
+// Each preset uses the FormState semantic fields; we translate to CoverInput
+// in buildInput(). capsTop / hero / support / verb are conceptual UI labels;
+// the mapping to input.kind/anchor/series is template-aware.
+const PRESETS: Record<string, FormState> = {
   thesisRates: {
     template: 'thesis',
     title: 'Rates Regime Cockpit',
     author: 'zet',
     tickers: '',
     domain: 'rates',
-    kind: "TODAY'S DELTA · MAY 9",
-    anchor: '2s10s flat at +12 bp · Fed funds 4.50%',
-    series: '',
+    capsTop: 'MAY 9',
+    hero: '2s10s flat at +12 bp · Fed funds 4.50%',
+    support: '',
+    verb: '',
     category: 'AMBIGUOUS',
     whatIfBars: '',
     locale: 'en',
@@ -61,9 +76,10 @@ const PRESETS: Record<string, Partial<FormState>> = {
     author: 'zet',
     tickers: 'TSLA',
     domain: '',
-    kind: 'DIP-BUY MONITOR · MAY 9',
-    anchor: 'Sentiment +18 pp · vs returns flat 3M',
-    series: '',
+    capsTop: 'MAY 9',
+    hero: 'Sentiment +18 pp · vs returns flat 3M',
+    support: '',
+    verb: '',
     category: 'AMBIGUOUS',
     whatIfBars: '',
     locale: 'en',
@@ -74,9 +90,10 @@ const PRESETS: Record<string, Partial<FormState>> = {
     author: 'zet40',
     tickers: 'BTC',
     domain: 'momentum',
-    kind: '周期信号 · 每 4 小时',
-    anchor: '62 / 100',
-    series: '8 项指标 · 分阶段判读',
+    capsTop: '周期信号 · 每 4 小时',
+    hero: '62 / 100',
+    support: '8 项指标 · 分阶段判读',
+    verb: '',
     category: '',
     whatIfBars: '',
     locale: 'zh-CN',
@@ -87,9 +104,10 @@ const PRESETS: Record<string, Partial<FormState>> = {
     author: 'terrezzaeynon897',
     tickers: 'SPY,USO',
     domain: 'event_study',
-    kind: '30D AFTER HORMUZ · 5×',
-    anchor: 'HISTORICALLY DROPS',
-    series: '−2.4%',
+    capsTop: '30D AFTER HORMUZ · 5×',
+    hero: '−2.4%',
+    support: '',
+    verb: 'HISTORICALLY DROPS',
     category: '',
     whatIfBars: '-2.4,-1.8,-0.6,0.4,1.1,-1.5,-2.1,0.8',
     locale: 'en',
@@ -100,16 +118,31 @@ const PRESETS: Record<string, Partial<FormState>> = {
     author: 'ivan',
     tickers: 'PG,JNJ,KO,MSFT,AAPL,GOOGL',
     domain: 'value',
-    kind: 'SCORED · S&P LARGE CAP · 6H',
-    anchor: 'PG',
-    series: '',
+    capsTop: 'SCORED · S&P LARGE CAP · 6H',
+    hero: '',  // screener hero comes from tickers[0]
+    support: '',
+    verb: '',
+    category: '',
+    whatIfBars: '',
+    locale: 'en',
+  },
+  empty: {
+    template: 'thesis',
+    title: '',
+    author: '',
+    tickers: '',
+    domain: '',
+    capsTop: '',
+    hero: '',
+    support: '',
+    verb: '',
     category: '',
     whatIfBars: '',
     locale: 'en',
   },
 };
 
-const DEFAULT: FormState = PRESETS.thesisRates as FormState;
+const DEFAULT: FormState = PRESETS.thesisRates;
 
 export function App() {
   const [form, setForm] = useState<FormState>(DEFAULT);
@@ -121,7 +154,7 @@ export function App() {
     setForm((f) => ({ ...f, [key]: value }));
 
   const applyPreset = (name: keyof typeof PRESETS) => {
-    setForm((f) => ({ ...f, ...PRESETS[name] } as FormState));
+    setForm(PRESETS[name]);
   };
 
   const downloadSvg = () => {
@@ -149,7 +182,7 @@ export function App() {
     img.src = svgUrl;
     await new Promise((r) => (img.onload = r));
 
-    const scale = 4; // 4× = 1280×720 PNG
+    const scale = 4;
     const canvas = document.createElement('canvas');
     canvas.width = COVER_W * scale;
     canvas.height = COVER_H * scale;
@@ -180,27 +213,9 @@ export function App() {
           self-contained (brand logos and Material Symbols inlined at render time).
         </p>
         <div className="meta">
-          <a
-            href="https://github.com/RobertLee8888/alva-cover-imagegen"
-            target="_blank"
-            rel="noreferrer"
-          >
-            ↗ Source
-          </a>
-          <a
-            href="https://github.com/RobertLee8888/alva-cover-imagegen/blob/main/SKILL.md"
-            target="_blank"
-            rel="noreferrer"
-          >
-            ↗ SKILL
-          </a>
-          <a
-            href="https://github.com/RobertLee8888/alva-cover-generation"
-            target="_blank"
-            rel="noreferrer"
-          >
-            ↗ Sister repo (320×140 baseline)
-          </a>
+          <a href="https://github.com/RobertLee8888/alva-cover-imagegen" target="_blank" rel="noreferrer">↗ Source</a>
+          <a href="https://github.com/RobertLee8888/alva-cover-imagegen/blob/main/SKILL.md" target="_blank" rel="noreferrer">↗ SKILL</a>
+          <a href="https://github.com/RobertLee8888/alva-cover-generation" target="_blank" rel="noreferrer">↗ Sister repo (320×140 baseline)</a>
         </div>
       </header>
 
@@ -217,190 +232,91 @@ export function App() {
           </div>
 
           <Field label="Template">
-            <select
-              value={form.template}
-              onChange={(e) => update('template', e.target.value as Template)}
-            >
-              {TEMPLATES.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
+            <select value={form.template} onChange={(e) => update('template', e.target.value as Template)}>
+              {TEMPLATES.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </Field>
 
           <Field label="Title" hint="Drives the bg hue hash. Not rendered on the cover.">
-            <input
-              type="text"
-              value={form.title}
-              onChange={(e) => update('title', e.target.value)}
-              placeholder="Rates Regime Cockpit"
-            />
+            <input type="text" value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="Rates Regime Cockpit" />
           </Field>
 
-          <Field
-            label="Tickers"
-            hint="Comma-separated. Single ticker = brand override; multiple = peer chips."
-          >
-            <input
-              type="text"
-              value={form.tickers}
-              onChange={(e) => update('tickers', e.target.value)}
-              placeholder="TSLA  ·  or  ·  PG, JNJ, KO"
-            />
+          <Field label="Tickers" hint={t === 'screener' ? 'Comma-separated. First becomes the hero, rest become peer chips.' : 'Comma-separated. Single ticker triggers brand-color override.'}>
+            <input type="text" value={form.tickers} onChange={(e) => update('tickers', e.target.value)} placeholder={t === 'screener' ? 'PG, JNJ, KO, MSFT' : 'BTC  ·  or  ·  TSLA'} />
           </Field>
 
-          <Field
-            label="Domain"
-            hint="Optional. Selects the Material Symbol when no brand logo is registered."
-          >
+          <Field label="Domain" hint="Optional. Selects the Material Symbol when no brand logo applies.">
             <select value={form.domain} onChange={(e) => update('domain', e.target.value as DomainKey | '')}>
               <option value="">(infer from title)</option>
-              {DOMAINS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
+              {DOMAINS.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </Field>
 
-          {(t === 'thesis' || t === 'screener' || t === 'what-if' || t === 'general') && (
-            <Field
-              label={
-                t === 'thesis'
-                  ? 'Caps label (kind)'
-                  : t === 'what-if'
-                  ? 'Caps label (kind)'
-                  : t === 'screener'
-                  ? 'Caps label (series-line)'
-                  : 'Kind label'
-              }
-              hint="Top-row small caps. Tracked + uppercase via SKILL."
-            >
-              <input
-                type="text"
-                value={form.kind}
-                onChange={(e) => update('kind', e.target.value)}
-                placeholder={
-                  t === 'thesis'
-                    ? "TODAY'S DELTA · MAY 9"
-                    : t === 'what-if'
-                    ? '30D AFTER HORMUZ · 5×'
-                    : t === 'general'
-                    ? 'CONTEXT FEED · daily'
-                    : 'SCORED · S&P LARGE CAP · 6H'
-                }
-              />
-            </Field>
-          )}
+          {/* ----- TEMPLATE-SPECIFIC FIELDS ----- */}
 
           {t === 'thesis' && (
             <>
-              <Field label="Category" hint="Drives the colored badge above the delta body.">
-                <select
-                  value={form.category}
-                  onChange={(e) => update('category', e.target.value as FormState['category'])}
-                >
+              <Field label="Caps label suffix" hint={`Appended to "TODAY'S DELTA · ", uppercased automatically. e.g. "MAY 9".`}>
+                <input type="text" value={form.capsTop} onChange={(e) => update('capsTop', e.target.value)} placeholder="MAY 9" />
+              </Field>
+              <Field label="Category badge" hint="Drives the colored dot + label above the delta body.">
+                <select value={form.category} onChange={(e) => update('category', e.target.value as FormState['category'])}>
                   <option value="">(none)</option>
                   <option value="RISK">RISK</option>
                   <option value="CATALYST">CATALYST</option>
                   <option value="AMBIGUOUS">AMBIGUOUS</option>
                 </select>
               </Field>
-              <Field
-                label="Delta body"
-                hint="Auto-split into 2 lines on ' · ', ' vs ', ' — ', or whitespace."
-              >
-                <textarea
-                  rows={2}
-                  value={form.anchor}
-                  onChange={(e) => update('anchor', e.target.value)}
-                  placeholder="2s10s flat at +12 bp · Fed funds 4.50%"
-                />
+              <Field label="Delta body" hint='Hero text. Auto-split into 2 lines on " · ", " vs ", " — ", or whitespace.'>
+                <textarea rows={2} value={form.hero} onChange={(e) => update('hero', e.target.value)} placeholder="2s10s flat at +12 bp · Fed funds 4.50%" />
               </Field>
             </>
           )}
 
           {t === 'screener' && (
-            <Field label="Hero ticker" hint="The lead ticker rendered large.">
-              <input
-                type="text"
-                value={form.anchor}
-                onChange={(e) => update('anchor', e.target.value)}
-                placeholder="PG"
-              />
+            <Field label="Caps label" hint='Top row, e.g. "SCORED · S&P LARGE CAP · 6H". The hero ticker comes from the first item in the Tickers list above.'>
+              <input type="text" value={form.capsTop} onChange={(e) => update('capsTop', e.target.value)} placeholder="SCORED · S&P LARGE CAP · 6H" />
             </Field>
           )}
 
           {t === 'what-if' && (
             <>
-              <Field label="Verb" hint='e.g. "HISTORICALLY DROPS"'>
-                <input
-                  type="text"
-                  value={form.anchor}
-                  onChange={(e) => update('anchor', e.target.value)}
-                  placeholder="HISTORICALLY DROPS"
-                />
+              <Field label="Caps label" hint='Top row, e.g. "30D AFTER HORMUZ · 5×".'>
+                <input type="text" value={form.capsTop} onChange={(e) => update('capsTop', e.target.value)} placeholder="30D AFTER HORMUZ · 5×" />
               </Field>
-              <Field label="Hero %" hint='Signed percentage, e.g. "−2.4%"'>
-                <input
-                  type="text"
-                  value={form.series}
-                  onChange={(e) => update('series', e.target.value)}
-                  placeholder="−2.4%"
-                />
+              <Field label="Verb" hint='Small caps above the hero. e.g. "HISTORICALLY DROPS".'>
+                <input type="text" value={form.verb} onChange={(e) => update('verb', e.target.value)} placeholder="HISTORICALLY DROPS" />
               </Field>
-              <Field
-                label="Distribution bars"
-                hint="Comma-separated signed % values, e.g. -2.4, 1.1, -0.8"
-              >
-                <input
-                  type="text"
-                  value={form.whatIfBars}
-                  onChange={(e) => update('whatIfBars', e.target.value)}
-                  placeholder="-2.4, -1.8, -0.6, 0.4, 1.1, -1.5"
-                />
+              <Field label="Hero %" hint='Signed percentage, e.g. "−2.4%".'>
+                <input type="text" value={form.hero} onChange={(e) => update('hero', e.target.value)} placeholder="−2.4%" />
+              </Field>
+              <Field label="Distribution bars" hint="Comma-separated signed % values, e.g. -2.4, 1.1, -0.8">
+                <input type="text" value={form.whatIfBars} onChange={(e) => update('whatIfBars', e.target.value)} placeholder="-2.4, -1.8, -0.6, 0.4, 1.1" />
               </Field>
             </>
           )}
 
           {t === 'general' && (
             <>
-              <Field label="Pulse text" hint='Hero element, e.g. "62 / 100" or "2h ago"'>
-                <input
-                  type="text"
-                  value={form.anchor}
-                  onChange={(e) => update('anchor', e.target.value)}
-                  placeholder="62 / 100"
-                />
+              <Field label="Kind label" hint='Top caps row, e.g. "CONTEXT FEED · daily" or "周期信号 · 每 4 小时".'>
+                <input type="text" value={form.capsTop} onChange={(e) => update('capsTop', e.target.value)} placeholder="CONTEXT FEED · daily" />
+              </Field>
+              <Field label="Pulse text" hint='Hero, e.g. "62 / 100", "2h ago", "38 holdings".'>
+                <input type="text" value={form.hero} onChange={(e) => update('hero', e.target.value)} placeholder="62 / 100" />
               </Field>
               <Field label="Series caps" hint="Bottom support row.">
-                <input
-                  type="text"
-                  value={form.series}
-                  onChange={(e) => update('series', e.target.value)}
-                  placeholder="8 项指标 · 分阶段判读"
-                />
+                <input type="text" value={form.support} onChange={(e) => update('support', e.target.value)} placeholder="8 项指标 · 分阶段判读" />
               </Field>
             </>
           )}
 
           <Field label="Author" hint="Shows below the cover in production. Not rendered on the cover SVG.">
-            <input
-              type="text"
-              value={form.author}
-              onChange={(e) => update('author', e.target.value)}
-              placeholder="zet"
-            />
+            <input type="text" value={form.author} onChange={(e) => update('author', e.target.value)} placeholder="zet" />
           </Field>
 
           <Field label="Locale">
             <select value={form.locale} onChange={(e) => update('locale', e.target.value as Locale)}>
-              {LOCALES.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
+              {LOCALES.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </Field>
         </section>
@@ -417,14 +333,12 @@ export function App() {
           </div>
 
           <div className="actions">
-            <button className="primary" onClick={downloadSvg}>
-              Download SVG
-            </button>
+            <button className="primary" onClick={downloadSvg}>Download SVG</button>
             <button onClick={downloadPng}>Download PNG (1280×720)</button>
           </div>
 
           <details className="json-debug">
-            <summary>Resolved CoverInput</summary>
+            <summary>Resolved CoverInput (what gets passed to generateCover)</summary>
             <pre>{JSON.stringify(input, null, 2)}</pre>
           </details>
         </section>
@@ -433,9 +347,8 @@ export function App() {
       <footer className="footer">
         <p>
           Render: pure synchronous <code>generateCover()</code> + SVG layout. Brand logos
-          fetched from <code>cdn.simpleicons.org</code>; Material Symbols from{' '}
-          <code>fonts.gstatic.com</code>; both inlined into the saved SVG so the asset is
-          self-contained.
+          fetched from <code>cdn.simpleicons.org</code>; Material Symbols from <code>fonts.gstatic.com</code>;
+          both inlined into the saved SVG so the asset is self-contained.
         </p>
       </footer>
     </div>
@@ -444,6 +357,10 @@ export function App() {
 
 // ---------- helpers ----------
 
+// Translate the FormState (semantic UI fields) to a CoverInput. Each template
+// uses input.kind / .anchor / .series with different meanings; we route the
+// form's semantic capsTop / hero / support / verb to the correct field per
+// template.
 function buildInput(f: FormState): CoverInput {
   const tickers = f.tickers
     .split(',')
@@ -465,14 +382,38 @@ function buildInput(f: FormState): CoverInput {
     tickers,
   };
   if (f.domain) out.domain = f.domain;
-  if (f.kind) out.kind = f.kind;
-  if (f.anchor) out.anchor = f.anchor;
-  if (f.series) out.series = f.series;
-  if (f.template === 'thesis' && f.category) {
-    out.category = f.category as 'RISK' | 'CATALYST' | 'AMBIGUOUS';
-  }
-  if (whatIfBars && whatIfBars.length) out.whatIfBars = whatIfBars;
   if (f.locale) out.locale = f.locale;
+
+  switch (f.template) {
+    case 'screener':
+      // capsTop → series ; hero/support unused (hero ticker comes from tickers[0])
+      if (f.capsTop) out.series = f.capsTop;
+      break;
+
+    case 'thesis':
+      // capsTop → anchor (suffix appended to "TODAY'S DELTA · ")
+      // hero    → kind   (delta body, multi-line via splitDelta)
+      if (f.capsTop) out.anchor = f.capsTop;
+      if (f.hero)    out.kind   = f.hero;
+      if (f.category) out.category = f.category as 'RISK' | 'CATALYST' | 'AMBIGUOUS';
+      break;
+
+    case 'what-if':
+      // capsTop → series ; verb → kind ; hero → anchor
+      if (f.capsTop) out.series = f.capsTop;
+      if (f.verb)    out.kind   = f.verb;
+      if (f.hero)    out.anchor = f.hero;
+      if (whatIfBars && whatIfBars.length) out.whatIfBars = whatIfBars;
+      break;
+
+    case 'general':
+      // capsTop → kind ; hero → anchor ; support → series
+      if (f.capsTop) out.kind   = f.capsTop;
+      if (f.hero)    out.anchor = f.hero;
+      if (f.support) out.series = f.support;
+      break;
+  }
+
   return out;
 }
 
