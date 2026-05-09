@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { CoverInput, Template, DomainKey, Locale } from '@skill/types';
 import { CoverRenderer } from './components/CoverRenderer';
+import { TickerInput } from './components/TickerInput';
 import { COVER_W, COVER_H } from '@skill/dimensions';
 
 // Form field shape — flat, all-strings for easy form binding. We translate to
@@ -22,7 +23,7 @@ type FormState = {
   template: Template;
   title: string;
   author: string;
-  tickers: string;
+  tickers: string[];
   domain: DomainKey | '';
   capsTop: string;        // shows at TOP as small caps. Maps to series (screener/what-if), kind (general). For thesis, this becomes the suffix appended to "TODAY'S DELTA · ".
   hero: string;           // shows as the BIG element. Maps to anchor (what-if hero %, general pulse) or kind (thesis delta body).
@@ -60,7 +61,7 @@ const PRESETS: Record<string, FormState> = {
     template: 'thesis',
     title: 'Rates Regime Cockpit',
     author: 'zet',
-    tickers: '',
+    tickers: [],
     domain: 'rates',
     capsTop: 'MAY 9',
     hero: '2s10s flat at +12 bp · Fed funds 4.50%',
@@ -74,7 +75,7 @@ const PRESETS: Record<string, FormState> = {
     template: 'thesis',
     title: 'TSLA Dip-Buy Reality Check',
     author: 'zet',
-    tickers: 'TSLA',
+    tickers: ['TSLA'],
     domain: '',
     capsTop: 'MAY 9',
     hero: 'Sentiment +18 pp · vs returns flat 3M',
@@ -88,7 +89,7 @@ const PRESETS: Record<string, FormState> = {
     template: 'general',
     title: 'BTC 周期诊断仪表盘',
     author: 'zet40',
-    tickers: 'BTC',
+    tickers: ['BTC'],
     domain: 'momentum',
     capsTop: '周期信号 · 每 4 小时',
     hero: '62 / 100',
@@ -102,7 +103,7 @@ const PRESETS: Record<string, FormState> = {
     template: 'what-if',
     title: 'SPY After Hormuz Blockade',
     author: 'terrezzaeynon897',
-    tickers: 'SPY,USO',
+    tickers: ['SPY','USO'],
     domain: 'event_study',
     capsTop: '30D AFTER HORMUZ · 5×',
     hero: '−2.4%',
@@ -116,7 +117,7 @@ const PRESETS: Record<string, FormState> = {
     template: 'screener',
     title: 'Quality-Value Screener',
     author: 'ivan',
-    tickers: 'PG,JNJ,KO,MSFT,AAPL,GOOGL',
+    tickers: ['PG','JNJ','KO','MSFT','AAPL','GOOGL'],
     domain: 'value',
     capsTop: 'SCORED · S&P LARGE CAP · 6H',
     hero: '',  // screener hero comes from tickers[0]
@@ -130,7 +131,7 @@ const PRESETS: Record<string, FormState> = {
     template: 'thesis',
     title: '',
     author: '',
-    tickers: '',
+    tickers: [],
     domain: '',
     capsTop: '',
     hero: '',
@@ -241,8 +242,18 @@ export function App() {
             <input type="text" value={form.title} onChange={(e) => update('title', e.target.value)} placeholder="Rates Regime Cockpit" />
           </Field>
 
-          <Field label="Tickers" hint={t === 'screener' ? 'Comma-separated. First becomes the hero, rest become peer chips.' : 'Comma-separated. Single ticker triggers brand-color override.'}>
-            <input type="text" value={form.tickers} onChange={(e) => update('tickers', e.target.value)} placeholder={t === 'screener' ? 'PG, JNJ, KO, MSFT' : 'BTC  ·  or  ·  TSLA'} />
+          <Field
+            label="Tickers"
+            hint={t === 'screener'
+              ? 'Press Enter / comma / Tab to add. First becomes the hero, rest become peer chips.'
+              : 'Press Enter / comma / Tab to add. Single ticker triggers brand-color override.'
+            }
+          >
+            <TickerInput
+              value={form.tickers}
+              onChange={(next) => update('tickers', next)}
+              placeholder={t === 'screener' ? 'PG, JNJ, KO, MSFT…' : 'BTC, TSLA, AAPL…'}
+            />
           </Field>
 
           <Field label="Domain" hint="Optional. Selects the Material Symbol when no brand logo applies.">
@@ -362,10 +373,7 @@ export function App() {
 // form's semantic capsTop / hero / support / verb to the correct field per
 // template.
 function buildInput(f: FormState): CoverInput {
-  const tickers = f.tickers
-    .split(',')
-    .map((t) => t.trim().toUpperCase())
-    .filter(Boolean);
+  const tickers = f.tickers.map((t) => t.trim().toUpperCase()).filter(Boolean);
 
   const whatIfBars =
     f.template === 'what-if' && f.whatIfBars

@@ -72,6 +72,94 @@ a:hover { text-decoration-thickness: 2px; }
 .field-label > span:first-child { font-weight: 500; color: var(--fg); }
 .field-hint { font-size: 11px; color: var(--fg-faint); font-weight: 400; }
 
+/* ---------- TickerInput (Ant-Design-style tag input) ---------- */
+
+.ticker-input { position: relative; }
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  min-height: 38px;
+  padding: 5px 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: text;
+}
+.tag-row:focus-within {
+  border-color: var(--border-strong);
+  background: #ffffff;
+}
+.tag-row input {
+  flex: 1;
+  min-width: 100px;
+  padding: 3px 4px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--fg);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(15, 23, 42, 0.06);
+  border-radius: 4px;
+  color: var(--fg);
+  user-select: none;
+}
+.tag button {
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.tag button:hover { color: var(--fg); background: rgba(15, 23, 42, 0.08); }
+
+.ticker-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  max-height: 240px;
+  overflow-y: auto;
+}
+.ticker-suggestions li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--fg);
+}
+.ticker-suggestions li.is-active,
+.ticker-suggestions li:hover { background: rgba(15, 23, 42, 0.04); }
+.suggestion-ticker { font-weight: 500; font-variant-numeric: tabular-nums; }
+.suggestion-hint { font-size: 11px; color: var(--fg-faint); }
+
+/* ---------- standard input/select/textarea ---------- */
+
 .field input, .field select, .field textarea {
   width: 100%;
   padding: 8px 10px;

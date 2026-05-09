@@ -86,7 +86,7 @@ export const TYPE_FLOORS = {
 // calls out — that template's hero text is full-width so a smaller
 // icon is correct there.
 
-export const DEFAULT_ICON_GEOM = { x: 172, y: 30, size: 120 } as const;
+export const DEFAULT_ICON_GEOM = { x: 152, y: 20, size: 140 } as const;
 export const WHATIF_ICON_GEOM  = { x: 240, y: 22, size: 64  } as const;
 
 // ---------- Theme tokens (canonical exports) ----------
