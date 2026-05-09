@@ -63,15 +63,22 @@ export function generateCover(input: CoverInput): CoverOutput {
   const isPortrait = !!input.portrait;
 
   // ---- Layer 1: background ----
+  // Single registered ticker (mono OR chromatic) → brand bg via alpha-on-white.
+  // Mono brands (AAPL/NKE/UBER/SPY etc, all #000000) yield a clean neutral
+  // gray gradient — was previously skipped to avoid a "deactivated" look,
+  // but user-facing testing confirmed full bg switch is the expected behavior
+  // when a single brand ticker is present. textBaseFor() handles achromatic
+  // (S<0.05) input by using pure gray text, so mono bg + neutral text reads
+  // cleanly.
   const bgHsl: HSL = isPortrait
     ? { H: input.portrait!.portraitH, S: band.S, L: band.L }
-    : brand && !brand.mono
+    : brand
       ? brandBgHsl(brand, band)          // alpha-on-white averaged back to HSL
       : hashedBgHsl(input.title, input.tickers, band);
 
   const bg: BgSpec = isPortrait
     ? withPortraitRender(buildGradient(bgHsl, "portrait"), input.portrait!)
-    : brand && !brand.mono
+    : brand
       ? buildBrandBg(brand, band)
       : buildGradient(bgHsl, "hashed");
 
@@ -92,10 +99,14 @@ export function generateCover(input: CoverInput): CoverOutput {
           );
 
   // ---- Text palette ----
+  // For chromatic brands, derive text from brand hue (TSLA → red-brown, BTC →
+  // warm brown). For mono brands (S<0.05), derive from bgHsl (which is now
+  // also the brand's hsl, but textBaseFor() neutralizes saturation). End
+  // result for AAPL: clean neutral dark-gray text on light gray gradient.
   const text: TextPalette = deriveTextPalette(
     brand && !brand.mono
-      ? colorToHsl(brand.color)          // brand override: text derives from brand hue
-      : bgHsl,
+      ? colorToHsl(brand.color)          // chromatic brand: text from brand hue
+      : bgHsl,                           // mono brand or no brand: text from bgHsl
   );
 
   // ---- Content (per-archetype) ----

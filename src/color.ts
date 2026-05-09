@@ -106,7 +106,12 @@ export function clampPaperRegime({ H, S, L }: HSL): HSL {
  *   textL = max(bgL − 0.70, 0.18)
  */
 export function textBaseFor({ H, S, L }: HSL): RGB {
-  const textS = Math.min(S + 0.20, 0.45);
+  // Achromatic (mono) brand input — bgS very low. Force textS=0 so the text
+  // is a pure neutral gray instead of picking up a red tint from H=0+textS>0.
+  // Without this, AAPL (#000000) would derive textS=0.20 over H=0 → dark
+  // red-brown text, clashing with its gray bg gradient.
+  const isAchromatic = S < 0.05;
+  const textS = isAchromatic ? 0 : Math.min(S + 0.20, 0.45);
   const textL = Math.max(L - 0.70, 0.18);
   return hslToRgb(H, textS, textL);
 }
