@@ -86,8 +86,25 @@ export const TYPE_FLOORS = {
 // calls out — that template's hero text is full-width so a smaller
 // icon is correct there.
 
-export const DEFAULT_ICON_GEOM = { x: 152, y: 20, size: 140 } as const;
-export const WHATIF_ICON_GEOM  = { x: 240, y: 22, size: 64  } as const;
+// Per-kind icon sizing. Brand glyphs (simpleicons) typically fill their
+// viewBox 90-100%; Material Symbol glyphs typically fill only 60-70% of
+// their viewBox. To equalize visible visual weight on the cover, brand
+// icons use a smaller frame than Material Symbols.
+//
+//   BRAND_ICON_GEOM:    frame 120, fills safe zone vertically (30-150)
+//   MATERIAL_ICON_GEOM: frame 140, ghost-touches 10 px past SAFE_TOP/BOTTOM
+//
+// Both anchor frame right edge to SAFE_RIGHT=292.
+//
+// WHATIF_ICON_GEOM stays at 64×64 corner-anchored — what-if hero text
+// is full-width so a smaller icon is correct there regardless of kind.
+
+export const BRAND_ICON_GEOM    = { x: 172, y: 30, size: 120 } as const;
+export const MATERIAL_ICON_GEOM = { x: 152, y: 20, size: 140 } as const;
+export const WHATIF_ICON_GEOM   = { x: 240, y: 22, size: 64  } as const;
+
+/** @deprecated kept for back-compat — use BRAND_ICON_GEOM or MATERIAL_ICON_GEOM. */
+export const DEFAULT_ICON_GEOM = MATERIAL_ICON_GEOM;
 
 // ---------- Theme tokens (canonical exports) ----------
 //

@@ -9,7 +9,7 @@ import {
   BgSpec, IconSpec, TextPalette, ContentElement, BarSpec, BrandEntry, PaletteBand,
 } from "./types";
 import {
-  DEFAULT_ICON_GEOM, WHATIF_ICON_GEOM,
+  BRAND_ICON_GEOM, MATERIAL_ICON_GEOM, WHATIF_ICON_GEOM,
   BARS_LEFT, BARS_RIGHT, BAR_GAP,
   CATEGORY_COLORS, FONT_WEIGHTS, TRACKED_CAPS,
 } from "./dimensions";
@@ -282,7 +282,7 @@ function brandBgHsl(brand: BrandEntry, band: PaletteBand): HSL {
 
 function buildMaterialIcon(symbol: string, template: Template, bgHsl: HSL): IconSpec {
   const color = iconColorFor(bgHsl);
-  const geom = iconGeometryFor(template);
+  const geom = iconGeometryFor(template, "material");
   return {
     kind: "material",
     symbol,
@@ -302,7 +302,7 @@ function symbolForDomain(domain: string): string {
 }
 
 function buildBrandIcon(ticker: string, brand: BrandEntry, template: Template): IconSpec {
-  const geom = iconGeometryFor(template);
+  const geom = iconGeometryFor(template, "brand");
   const opacity = geom.size === 64 ? 0.50 : 0.40;
   return {
     kind: "brand",
@@ -377,17 +377,14 @@ export function validatePortrait(input: CoverInput): void {
 }
 
 type IconGeom = { x: number; y: number; size: number };
-function iconGeometryFor(template: Template): IconGeom {
-  // What-if: frame at (237, 15) intentionally overflows safe-zone top-left.
-  // Material Symbols / brand 80%-inset SVGs both have ~5px internal padding,
-  // so the *visible* glyph's top-right lands at (296, 20) — exactly at the
-  // safe-zone corner. Aligning the FRAME to (232, 28) leaves the visible
-  // glyph 5–6 px indented from the corner — the bug the user reported.
-  // What-if frame at (240, 12) — visible glyph floats past safe-zone
-  // top-right by ~5 px, reading as decisively corner-anchored. Frame
-  // right x=304 still inside cover (320).
-  if (template === "what-if") return { x: 240, y: 12, size: 64 };
-  return { x: 192, y: 22, size: 100 };
+function iconGeometryFor(template: Template, kind: "brand" | "material"): IconGeom {
+  // What-if uses the same compact corner-anchored frame regardless of kind —
+  // the what-if hero text is full-width so a smaller icon is correct there.
+  if (template === "what-if") return WHATIF_ICON_GEOM;
+  // Brand glyphs fill their viewBox; Material Symbol glyphs leave significant
+  // padding inside the viewBox. Use different frame sizes to equalize visible
+  // visual weight on the cover.
+  return kind === "brand" ? BRAND_ICON_GEOM : MATERIAL_ICON_GEOM;
 }
 
 // ================================================================
