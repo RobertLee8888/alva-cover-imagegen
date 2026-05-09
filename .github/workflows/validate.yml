@@ -1,0 +1,22 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Re-run weekly so we catch CDN-side changes (e.g. simpleicons drops a slug)
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  brand-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm install
+      - run: npm run validate:brands
