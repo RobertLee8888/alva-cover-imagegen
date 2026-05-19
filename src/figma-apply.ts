@@ -3,6 +3,13 @@
 // (Inter fallback + [PENDING-DELIGHT] layer-name tag if unloaded).
 
 import { CoverOutput, CoverInput, RGB, IconSpec, BarSpec } from "./types";
+import {
+  COVER_W,
+  COVER_H,
+  CARD_W_DESIGN,
+  CARD_H_DESIGN,
+  DEFAULT_ICON_GEOM,
+} from "./dimensions";
 
 type FigmaNode = any;
 
@@ -247,7 +254,7 @@ function applySubtitleLock(card: FigmaNode): void {
 export function createCardShell(parent: FigmaNode): FigmaNode {
   const card = (globalThis as any).figma.createFrame();
   card.name = "Card";
-  card.resize(328, 302);
+  card.resize(CARD_W_DESIGN, CARD_H_DESIGN);
   card.cornerRadius = 12;
   card.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
   card.strokes = [{ type: "SOLID", color: { r: 0.92, g: 0.93, b: 0.94 } }];
@@ -274,25 +281,25 @@ export function createCardShell(parent: FigmaNode): FigmaNode {
   // Cover
   const cover = (globalThis as any).figma.createFrame();
   cover.name = "Cover";
-  cover.resize(320, 140);
+  cover.resize(COVER_W, COVER_H);
   cover.cornerRadius = 8;
   cover.clipsContent = true;
   card.appendChild(cover);
   cover.layoutSizingHorizontal = "FILL";
   cover.layoutSizingVertical = "FIXED";
 
-  // Icon frame placeholder (default 100×100)
+  // Icon frame placeholder (canonical default geom — see dimensions.ts)
   const iconFrame = (globalThis as any).figma.createFrame();
   iconFrame.name = "IconFrame";
-  iconFrame.resize(100, 100);
-  iconFrame.x = 196;
-  iconFrame.y = 22;
+  iconFrame.resize(DEFAULT_ICON_GEOM.size, DEFAULT_ICON_GEOM.size);
+  iconFrame.x = DEFAULT_ICON_GEOM.x;
+  iconFrame.y = DEFAULT_ICON_GEOM.y;
   iconFrame.fills = [];
   iconFrame.constraints = { horizontal: "MAX", vertical: "MIN" };
   cover.appendChild(iconFrame);
 
   const vector = (globalThis as any).figma.createVector();
-  vector.resize(100, 100);
+  vector.resize(DEFAULT_ICON_GEOM.size, DEFAULT_ICON_GEOM.size);
   vector.x = 0;
   vector.y = 0;
   iconFrame.appendChild(vector);
